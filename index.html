@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ToDoタスク管理</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f5f4f0;
+    --surface: #ffffff;
+    --surface2: #f1f0ec;
+    --border: rgba(0,0,0,0.12);
+    --border2: rgba(0,0,0,0.22);
+    --text: #1a1a18;
+    --text2: #6b6b67;
+    --text3: #a0a09c;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a;
+      --surface: #252523;
+      --surface2: #2e2e2c;
+      --border: rgba(255,255,255,0.1);
+      --border2: rgba(255,255,255,0.2);
+      --text: #e8e8e4;
+      --text2: #9a9a96;
+      --text3: #5a5a56;
+    }
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 2rem 1rem 4rem;
+  }
+
+  .app { max-width: 640px; margin: 0 auto; }
+
+  .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 8px; }
+  .title { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; }
+
+  .stats { display: flex; gap: 6px; flex-wrap: wrap; }
+  .pill { font-size: 12px; padding: 3px 10px; border-radius: 20px; background: var(--surface2); color: var(--text2); border: 0.5px solid var(--border); }
+  .pill.done { background: #EAF3DE; color: #3B6D11; border-color: #C0DD97; }
+  .pill.over { background: #FCEBEB; color: #A32D2D; border-color: #F7C1C1; }
+  @media (prefers-color-scheme: dark) {
+    .pill.done { background: #1a2e0a; color: #97C459; border-color: #3B6D11; }
+    .pill.over { background: #2e0a0a; color: #F09595; border-color: #A32D2D; }
+  }
+
+  .tabs { display: flex; border: 0.5px solid var(--border); border-radius: var(--radius-md); overflow: hidden; width: fit-content; margin-bottom: 1.25rem; }
+  .tab { font-size: 13px; padding: 7px 20px; border: none; background: transparent; color: var(--text2); cursor: pointer; font-family: inherit; }
+  .tab.active { background: var(--surface); color: var(--text); font-weight: 500; }
+
+  .input-row { display: flex; gap: 8px; margin-bottom: 1rem; flex-wrap: wrap; }
+  .task-input { flex: 1; min-width: 160px; height: 42px; padding: 0 14px; font-size: 14px; border-radius: var(--radius-md); border: 0.5px solid var(--border2); background: var(--surface); color: var(--text); outline: none; font-family: inherit; }
+  .task-input:focus { border-color: #378ADD; box-shadow: 0 0 0 3px rgba(55,138,221,0.15); }
+  .task-input::placeholder { color: var(--text3); }
+  select, input[type=date] { height: 42px; padding: 0 10px; font-size: 13px; border-radius: var(--radius-md); border: 0.5px solid var(--border2); background: var(--surface); color: var(--text); cursor: pointer; font-family: inherit; }
+  .add-btn { height: 42px; padding: 0 20px; font-size: 14px; font-weight: 500; border-radius: var(--radius-md); border: 0.5px solid var(--border2); background: var(--text); color: var(--bg); cursor: pointer; white-space: nowrap; font-family: inherit; transition: opacity 0.15s; }
+  .add-btn:hover { opacity: 0.8; }
+  .add-btn:active { transform: scale(0.98); }
+
+  .filter-row { display: flex; gap: 6px; margin-bottom: 1.25rem; flex-wrap: wrap; }
+  .fbtn { font-size: 13px; padding: 5px 13px; border-radius: 20px; border: 0.5px solid var(--border); background: transparent; color: var(--text2); cursor: pointer; font-family: inherit; }
+  .fbtn.active { background: var(--surface); color: var(--text); border-color: var(--border2); font-weight: 500; }
+  .fbtn:hover { background: var(--surface2); }
+
+  .task-list { display: flex; flex-direction: column; gap: 8px; }
+  .task-card { display: flex; align-items: center; gap: 12px; padding: 13px 14px; background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-lg); animation: si 0.18s ease; }
+  @keyframes si { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+  .task-card.done-card { opacity: 0.5; }
+  .task-card.overdue { border-color: #F7C1C1; }
+  @media (prefers-color-scheme: dark) { .task-card.overdue { border-color: #A32D2D; } }
+
+  input[type=checkbox] { width: 18px; height: 18px; cursor: pointer; accent-color: #1D9E75; flex-shrink: 0; }
+  .task-body { flex: 1; min-width: 0; }
+  .task-text { font-size: 14px; color: var(--text); line-height: 1.45; word-break: break-word; }
+  .task-text.struck { text-decoration: line-through; color: var(--text3); }
+  .task-meta { font-size: 12px; color: var(--text3); margin-top: 3px; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+
+  .badge { font-size: 11px; padding: 2px 7px; border-radius: 20px; font-weight: 500; }
+  .bh { background: #FAECE7; color: #993C1D; }
+  .bm { background: #FAEEDA; color: #854F0B; }
+  .bl { background: #EAF3DE; color: #3B6D11; }
+  .date-badge { font-size: 11px; padding: 2px 7px; border-radius: 20px; background: var(--surface2); color: var(--text2); border: 0.5px solid var(--border); }
+  .date-badge.over { background: #FCEBEB; color: #A32D2D; border-color: #F7C1C1; }
+  .date-badge.tod { background: #E6F1FB; color: #185FA5; border-color: #B5D4F4; }
+  @media (prefers-color-scheme: dark) {
+    .bh { background: #2e1208; color: #F0997B; }
+    .bm { background: #2e1e04; color: #EF9F27; }
+    .bl { background: #0e1e04; color: #97C459; }
+    .date-badge.over { background: #2e0a0a; color: #F09595; border-color: #A32D2D; }
+    .date-badge.tod { background: #042C53; color: #85B7EB; border-color: #185FA5; }
+  }
+
+  .del-btn { width: 28px; height: 28px; border-radius: 6px; border: none; background: transparent; color: var(--text3); cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .del-btn:hover { background: #FCEBEB; color: #A32D2D; }
+  @media (prefers-color-scheme: dark) { .del-btn:hover { background: #2e0a0a; color: #F09595; } }
+
+  .empty { text-align: center; padding: 3rem; color: var(--text3); font-size: 14px; }
+  .clear-btn { font-size: 12px; color: var(--text3); background: none; border: none; cursor: pointer; padding: 0; font-family: inherit; text-decoration: underline; margin-top: 1.5rem; display: block; }
+  .clear-btn:hover { color: #A32D2D; }
+
+  .cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+  .cal-nav-btn { width: 32px; height: 32px; border-radius: var(--radius-md); border: 0.5px solid var(--border); background: transparent; color: var(--text2); cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; }
+  .cal-nav-btn:hover { background: var(--surface2); }
+  .cal-month { font-size: 16px; font-weight: 500; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+  .cal-dow { font-size: 11px; color: var(--text3); text-align: center; padding: 4px 0; }
+  .cal-day { min-height: 58px; padding: 5px; border-radius: var(--radius-md); border: 0.5px solid var(--border); background: var(--surface); cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
+  .cal-day:hover { background: var(--surface2); }
+  .cal-day.other { opacity: 0.3; }
+  .cal-day.today-cell { border-color: #378ADD; }
+  .cal-day.selected-cell { background: var(--surface2); border-color: var(--border2); }
+  .cal-day-num { font-size: 12px; font-weight: 500; color: var(--text); line-height: 1; }
+  .cal-day.today-cell .cal-day-num { color: #185FA5; }
+  .cal-dot { height: 4px; border-radius: 2px; width: 100%; }
+  .cal-dot.high { background: #D85A30; }
+  .cal-dot.mid { background: #BA7517; }
+  .cal-dot.low { background: #639922; }
+  .cal-dot.done-dot { background: var(--border2); }
+  .cal-task-list { margin-top: 1.25rem; display: flex; flex-direction: column; gap: 7px; }
+  .cal-sel-label { font-size: 12px; color: var(--text3); margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <span class="title">タスク</span>
+    <div class="stats">
+      <span class="pill" id="stat-total">0件</span>
+      <span class="pill done" id="stat-done">0件完了</span>
+      <span class="pill over" id="stat-over" style="display:none">0件期限切れ</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('list',this)">リスト</button>
+    <button class="tab" onclick="switchTab('cal',this)">カレンダー</button>
+  </div>
+
+  <div id="pane-list">
+    <div class="input-row">
+      <input class="task-input" id="task-input" type="text" placeholder="新しいタスクを入力…" maxlength="100" />
+      <select id="priority-sel">
+        <option value="high">高</option>
+        <option value="mid" selected>中</option>
+        <option value="low">低</option>
+      </select>
+      <input type="date" id="due-input" />
+      <button class="add-btn" onclick="addTask()">追加</button>
+    </div>
+    <div class="filter-row">
+      <button class="fbtn active" onclick="setFilter('all',this)">すべて</button>
+      <button class="fbtn" onclick="setFilter('active',this)">未完了</button>
+      <button class="fbtn" onclick="setFilter('done',this)">完了済み</button>
+      <button class="fbtn" onclick="setFilter('overdue',this)">期限切れ</button>
+      <button class="fbtn" onclick="setFilter('high',this)">優先度：高</button>
+    </div>
+    <div id="task-list" class="task-list"></div>
+    <button class="clear-btn" id="clear-btn" onclick="clearDone()" style="display:none">完了済みをすべて削除</button>
+  </div>
+
+  <div id="pane-cal" style="display:none">
+    <div class="cal-nav">
+      <button class="cal-nav-btn" onclick="moveMonth(-1)">&#8249;</button>
+      <span class="cal-month" id="cal-month-label"></span>
+      <button class="cal-nav-btn" onclick="moveMonth(1)">&#8250;</button>
+    </div>
+    <div class="cal-grid" id="cal-dow-row"></div>
+    <div class="cal-grid" id="cal-body" style="margin-top:3px"></div>
+    <div class="cal-task-list" id="cal-task-list"></div>
+  </div>
+</div>
+
+<script>
+  const STORAGE = 'todo_v2';
+
+  function todayStr() { return new Date().toISOString().slice(0, 10); }
+
+  function defaultTasks() {
+    const t = todayStr();
+    const tom = new Date(); tom.setDate(tom.getDate() + 2);
+    const yt = new Date(); yt.setDate(yt.getDate() - 1);
+    return [
+      { id: 1, text: '週次レポートを作成する', priority: 'high', done: false, due: tom.toISOString().slice(0, 10) },
+      { id: 2, text: 'メールの返信をする', priority: 'mid', done: false, due: t },
+      { id: 3, text: '書類をファイリングする', priority: 'low', done: true, due: yt.toISOString().slice(0, 10) },
+    ];
+  }
+
+  function loadTasks() {
+    try { const r = localStorage.getItem(STORAGE); return r ? JSON.parse(r) : defaultTasks(); }
+    catch { return defaultTasks(); }
+  }
+
+  function save() { localStorage.setItem(STORAGE, JSON.stringify(tasks)); }
+
+  let tasks = loadTasks();
+  let nextId = tasks.reduce((m, t) => Math.max(m, t.id), 0) + 1;
+  let filter = 'all';
+  let tab = 'list';
+  let calYear = new Date().getFullYear();
+  let calMonth = new Date().getMonth();
+  let calSelected = null;
+
+  document.getElementById('due-input').value = todayStr();
+
+  function switchTab(t, btn) {
+    tab = t;
+    document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('pane-list').style.display = t === 'list' ? '' : 'none';
+    document.getElementById('pane-cal').style.display = t === 'cal' ? '' : 'none';
+    if (t === 'cal') renderCal();
+  }
+
+  function setFilter(f, btn) {
+    filter = f;
+    document.querySelectorAll('.fbtn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderList();
+  }
+
+  function addTask() {
+    const input = document.getElementById('task-input');
+    const text = input.value.trim();
+    if (!text) { input.focus(); return; }
+    const priority = document.getElementById('priority-sel').value;
+    const due = document.getElementById('due-input').value || todayStr();
+    tasks.unshift({ id: nextId++, text, priority, done: false, due });
+    input.value = '';
+    input.focus();
+    save(); renderAll();
+  }
+
+  function toggle(id) {
+    const t = tasks.find(t => t.id === id);
+    if (t) { t.done = !t.done; save(); renderAll(); }
+  }
+
+  function del(id) { tasks = tasks.filter(t => t.id !== id); save(); renderAll(); }
+  function clearDone() { tasks = tasks.filter(t => !t.done); save(); renderAll(); }
+
+  function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+  function badgeHTML(p) {
+    const m = { high: ['bh', '高'], mid: ['bm', '中'], low: ['bl', '低'] };
+    const [c, l] = m[p] || ['bm', '中'];
+    return `<span class="badge ${c}">${l}</span>`;
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '';
+    const [, mo, d] = iso.split('-');
+    return `${Number(mo)}/${Number(d)}`;
+  }
+
+  function isOverdue(t) { return !t.done && t.due && t.due < todayStr(); }
+
+  function dueBadge(due, done) {
+    if (!due) return '';
+    const today = todayStr();
+    if (!done && due < today) return `<span class="date-badge over">期限切れ ${fmtDate(due)}</span>`;
+    if (due === today) return `<span class="date-badge tod">今日</span>`;
+    return `<span class="date-badge">${fmtDate(due)}</span>`;
+  }
+
+  function taskCardHTML(t) {
+    return `<div class="task-card ${t.done ? 'done-card' : ''} ${isOverdue(t) ? 'overdue' : ''}">
+      <input type="checkbox" ${t.done ? 'checked' : ''} onchange="toggle(${t.id})" />
+      <div class="task-body">
+        <div class="task-text ${t.done ? 'struck' : ''}">${esc(t.text)}</div>
+        <div class="task-meta">${badgeHTML(t.priority)}${dueBadge(t.due, t.done)}</div>
+      </div>
+      <button class="del-btn" onclick="del(${t.id})">✕</button>
+    </div>`;
+  }
+
+  function renderList() {
+    const done = tasks.filter(t => t.done);
+    const over = tasks.filter(isOverdue);
+    document.getElementById('stat-total').textContent = tasks.length + '件';
+    document.getElementById('stat-done').textContent = done.length + '件完了';
+    const overEl = document.getElementById('stat-over');
+    if (over.length > 0) { overEl.style.display = ''; overEl.textContent = over.length + '件期限切れ'; }
+    else overEl.style.display = 'none';
+
+    let visible;
+    if (filter === 'all') visible = tasks;
+    else if (filter === 'active') visible = tasks.filter(t => !t.done);
+    else if (filter === 'done') visible = done;
+    else if (filter === 'overdue') visible = over;
+    else if (filter === 'high') visible = tasks.filter(t => t.priority === 'high');
+
+    document.getElementById('task-list').innerHTML = visible.length === 0
+      ? '<div class="empty">タスクがありません</div>'
+      : visible.map(taskCardHTML).join('');
+    document.getElementById('clear-btn').style.display = done.length > 0 ? 'block' : 'none';
+  }
+
+  function renderCal() {
+    const dows = ['日', '月', '火', '水', '木', '金', '土'];
+    document.getElementById('cal-dow-row').innerHTML = dows.map(d => `<div class="cal-dow">${d}</div>`).join('');
+    document.getElementById('cal-month-label').textContent = `${calYear}年${calMonth + 1}月`;
+
+    const today = todayStr();
+    const totalDays = new Date(calYear, calMonth + 1, 0).getDate();
+    const startDow = new Date(calYear, calMonth, 1).getDay();
+    const prevLast = new Date(calYear, calMonth, 0).getDate();
+
+    const cells = [];
+    for (let i = 0; i < startDow; i++) {
+      const day = prevLast - startDow + 1 + i;
+      const iso = `${calYear}-${String(calMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      cells.push({ day, iso, other: true });
+    }
+    for (let d = 1; d <= totalDays; d++) {
+      const iso = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      cells.push({ day: d, iso, other: false });
+    }
+    const rem = cells.length % 7 === 0 ? 0 : 7 - cells.length % 7;
+    for (let d = 1; d <= rem; d++) {
+      const nm = calMonth + 2 > 12 ? 1 : calMonth + 2;
+      const ny = calMonth + 2 > 12 ? calYear + 1 : calYear;
+      cells.push({ day: d, iso: `${ny}-${String(nm).padStart(2,'0')}-${String(d).padStart(2,'0')}`, other: true });
+    }
+
+    document.getElementById('cal-body').innerHTML = cells.map(c => {
+      const dayTasks = tasks.filter(t => t.due === c.iso);
+      const dots = dayTasks.slice(0, 3).map(t =>
+        `<div class="cal-dot ${t.done ? 'done-dot' : t.priority}"></div>`).join('');
+      return `<div class="cal-day ${c.other ? 'other' : ''} ${c.iso === today ? 'today-cell' : ''} ${c.iso === calSelected ? 'selected-cell' : ''}" onclick="selectDay('${c.iso}')">
+        <div class="cal-day-num">${c.day}</div>${dots}
+      </div>`;
+    }).join('');
+
+    renderCalTasks();
+  }
+
+  function selectDay(iso) {
+    calSelected = calSelected === iso ? null : iso;
+    renderCal();
+  }
+
+  function renderCalTasks() {
+    const el = document.getElementById('cal-task-list');
+    if (!calSelected) { el.innerHTML = ''; return; }
+    const dayTasks = tasks.filter(t => t.due === calSelected);
+    const [, mo, d] = calSelected.split('-');
+    el.innerHTML = `<div class="cal-sel-label">${Number(mo)}月${Number(d)}日のタスク</div>` +
+      (dayTasks.length === 0
+        ? '<div class="empty" style="padding:1rem">タスクなし</div>'
+        : dayTasks.map(taskCardHTML).join(''));
+  }
+
+  function moveMonth(dir) {
+    calMonth += dir;
+    if (calMonth > 11) { calMonth = 0; calYear++; }
+    if (calMonth < 0) { calMonth = 11; calYear--; }
+    renderCal();
+  }
+
+  function renderAll() { renderList(); if (tab === 'cal') renderCal(); }
+
+  document.getElementById('task-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addTask();
+  });
+
+  renderList();
+</script>
+</body>
+</html>
